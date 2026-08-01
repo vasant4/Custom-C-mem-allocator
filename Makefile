@@ -1,18 +1,19 @@
-CC     := gcc
-CFLAGS := -Wall -Wextra -g
+CC      = gcc
+CFLAGS  = -Wall -Wextra -g -Iinclude
 
-all: malloc.o
+all: test_malloc list
 
-malloc.o: src/malloc.c src/malloc.h
-	$(CC) $(CFLAGS) -c src/malloc.c -o malloc.o
+test_malloc: src/malloc.c tests/test_malloc.c
+	$(CC) $(CFLAGS) -o test_malloc src/malloc.c tests/test_malloc.c
 
-test_malloc: tests/test_malloc.c src/malloc.c src/malloc.h
-	$(CC) $(CFLAGS) tests/test_malloc.c src/malloc.c -o test_malloc
+list: warmups/list.c
+	$(CC) $(CFLAGS) -o list warmups/list.c
 
-test: test_malloc
+test: all
 	./test_malloc
+	./list
 
 clean:
-	rm -f malloc.o test_malloc test_malloc.exe
+	rm -f test_malloc list
 
 .PHONY: all test clean

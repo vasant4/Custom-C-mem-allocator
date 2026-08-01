@@ -1,9 +1,9 @@
-#ifndef MY_MALLOC_H
-#define MY_MALLOC_H
+#ifndef MYALLOC_H
+#define MYALLOC_H
 
 #include <stddef.h>
 
 void *my_malloc(size_t size);
 void my_free(void *ptr);
 
-#endif /* MY_MALLOC_H */
+#endif
