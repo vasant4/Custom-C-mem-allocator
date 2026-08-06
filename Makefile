@@ -1,7 +1,7 @@
 CC      = gcc
 CFLAGS  = -Wall -Wextra -g -Iinclude
 
-all: test_malloc list
+all: test_malloc list padding strings mem
 
 test_malloc: src/malloc.c tests/test_malloc.c
 	$(CC) $(CFLAGS) -o test_malloc src/malloc.c tests/test_malloc.c
@@ -26,6 +26,6 @@ test: all
 	./strings
 
 clean:
-	rm -f test_malloc list
+	rm -f test_malloc list padding strings mem
 
 .PHONY: all test clean
