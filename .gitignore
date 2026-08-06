@@ -1,3 +1,11 @@
 *.o
 *.exe
 test_malloc
+list
+padding
+strings
+mem
+list
+padding
+strings
+mem
