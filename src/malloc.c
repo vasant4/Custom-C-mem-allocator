@@ -9,7 +9,9 @@ typedef struct block_header{
 
 void *my_malloc(size_t size)
 {
+	size = (size + 7) & ~((size_t)7);
 	void *brkop = sbrk((sizeof(block_header_t) + size));
+	
 	if (brkop == (void *) -1){
 		return NULL;
 	}
@@ -23,6 +25,7 @@ void *my_malloc(size_t size)
 
 void my_free(void *ptr)
 {
+	if (ptr == NULL) return; //check for NULL pointers
 	block_header_t *header = (block_header_t*)ptr-1;
 	header->is_free=1;
 	(void)ptr;
