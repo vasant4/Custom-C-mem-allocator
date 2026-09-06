@@ -22,5 +22,7 @@ int main(void)
     printf("break after:  %p\n", sbrk(0));
 
     my_free(a); my_free(b); my_free(c);
+    printf("Printing all the current blocks details:\n");
+    dump_blocks();
     return 0;
 }
