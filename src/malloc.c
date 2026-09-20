@@ -22,8 +22,15 @@ void dump_blocks(void){
 
 void *my_malloc(size_t size)
 {
-
-	size = (size + 7) & ~((size_t)7);
+	size = (size + 7) & ~((size_t)7); 
+	block_header_t* current = g_head;
+	while(current != NULL){
+		if(current->is_free == 1 && current->size >= size){
+			current->is_free = 0;
+			return(current +1);
+		}
+		current = current-> next;
+	}
 	void *brkop = sbrk((sizeof(block_header_t) + size));
 	
 	if (brkop == (void *) -1){

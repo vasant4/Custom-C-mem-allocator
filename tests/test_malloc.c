@@ -5,6 +5,7 @@
 int main(void)
 {
     printf("Break before: %p\n", sbrk(0));
+    printf(" \n");
     char *a = my_malloc(10);
     char *b = my_malloc(20);
     char *c = my_malloc(30);
@@ -20,9 +21,21 @@ int main(void)
     printf("c = %p  first=%c last=%c\n", (void*)c, c[0], c[29]);
 
     printf("break after:  %p\n", sbrk(0));
+    printf(" \n");
+    dump_blocks();
+    printf(" \n");
+    // my_free(a);
+    my_free(b);
+    printf("Adding Dump Blocks after freeing b\n");
+    dump_blocks();
+    printf(" \n");
+    // my_free(c);
 
-    my_free(a); my_free(b); my_free(c);
+    char *d = my_malloc(8);
+    for (int i = 0; i < 30; i++) c[i] = 'C';
+    printf("c = %p  first=%c last=%c\n", (void*)c, c[0], c[29]);
     printf("Printing all the current blocks details:\n");
     dump_blocks();
+    my_free(d);
     return 0;
 }
