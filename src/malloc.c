@@ -28,7 +28,7 @@ static block_header_t * split_blocks(size_t size,block_header_t *current){
 	new_block->is_free = 1; 	/*Update is_free to 1 - means free*/
 	new_block->next = current->next;
 	if(g_tail == current){
-		g_tail->next=new_block; /* Update the tail/last block details in g_tail*/
+		g_tail = new_block; /* Update the tail/last block details in g_tail*/
 	}
 	/*Updting the new block size and poitner information of exsiting*/
 	current->size = size;
@@ -47,6 +47,8 @@ static block_header_t * get_free_blocks(size_t size){
 				new_split_block->is_free=0;
 				return new_split_block;
 			}
+			current->is_free = 0;
+			return current;
 		}
 		current = current-> next;
 	}
