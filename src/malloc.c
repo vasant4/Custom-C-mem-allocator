@@ -20,29 +20,33 @@ void dump_blocks(void){
 	}
 }
 
-block_header_t * split_blocks(size_t size,block_header_t *current){
+static block_header_t * split_blocks(size_t size,block_header_t *current){
 	
 	/*Creation of new block and updating it's contents*/
 	block_header_t * new_block = (block_header_t *)((char *)current + sizeof(block_header_t)+ size);
 	new_block->size = current->size - size - sizeof(block_header_t);		/*Update new block's size*/
-	new_block->is_free = 1; 	/*Update is_free to 0 - means free*/
+	new_block->is_free = 1; 	/*Update is_free to 1 - means free*/
 	new_block->next = current->next;
-
+	if(g_tail == current){
+		g_tail->next=new_block; /* Update the tail/last block details in g_tail*/
+	}
 	/*Updting the new block size and poitner information of exsiting*/
 	current->size = size;
 	current->next = new_block;
 	return current;
 }
 
-block_header_t * get_free_blocks(size_t size){ 
+static block_header_t * get_free_blocks(size_t size){ 
 	block_header_t* current = g_head;
 	block_header_t* new_split_block;
 	while(current != NULL){
 		size_t remaining_space = current->size - size;
-		if(current->is_free == 1 && current->size >= size && remaining_space >= (sizeof(block_header_t) + 8)){ 
-			new_split_block = split_blocks(size,current);/* Function to split the blocks if the condition matches*/
-			new_split_block->is_free=0;
-			return(new_split_block +1);
+		if(current->is_free == 1 && current->size >= size){ 
+			if(remaining_space >= (sizeof(block_header_t) + 8)){
+				new_split_block = split_blocks(size,current);/* Function to split the blocks if the condition matches*/
+				new_split_block->is_free=0;
+				return new_split_block;
+			}
 		}
 		current = current-> next;
 	}
