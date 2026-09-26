@@ -1,6 +1,7 @@
 #include "../src/myalloc.h"
 #include <unistd.h>
 #include <stdio.h>
+#include <stdint.h> // for uintptr_t
 typedef struct block_header{
 	size_t size;
 	int is_free;
@@ -10,11 +11,73 @@ typedef struct block_header{
 static block_header_t *g_head = NULL;
 static block_header_t *g_tail = NULL;
 
+static void write_str(const char * s){
+    size_t len = 0;
+    // Count characters until we hit the null-terminator
+    while (s[len] != '\0') {
+        len++;
+    }
+    // Write exactly 'len' bytes to file descriptor 1 (stdout)
+    write(1, s, len);
+}
+
+static void write_hex(void * ptr){
+	write_str("0x");
+	if(ptr==NULL){
+		write_str("0");
+		return;
+	}
+	uintptr_t n = (uintptr_t)ptr;
+	char buffer[20];
+	int pos = 19;
+	const char *hex_chars = "0123456789abcdef";
+	while (n>0){
+		buffer[pos]= hex_chars[n%16];
+        pos--;
+        n = n / 16;
+	}
+	write(1, &buffer[pos + 1], 19 - pos);
+}
+
+static void write_dec(size_t n){
+	if (n == 0) {
+	write(1, "0", 1);
+	return;
+	}
+
+    char buf[24]; 
+    
+    int pos = 23; 
+    while (n > 0) {
+
+        buf[pos] = '0' + (n % 10);
+        pos--;       // Move backwards in our buffer
+        n = n / 10;  // Chop off the last digit
+    }
+
+	write(1, &buf[pos + 1], 23 - pos);
+}
+
 void dump_blocks(void){
 	block_header_t *current = g_head;
 	int i = 0;
 	while(current != NULL){
-		printf("block %d: addr=%p size=%zu free=%d\n", i, (void *)current, current->size, current->is_free);
+		// printf("block %d: addr=%p size=%zu free=%d\n", i, (void *)current, current->size, current->is_free);
+		write_str("block:");
+		write_dec(i);
+		// write_str("\n");
+
+		write_str(" address: ");
+		write_hex((void *) current);
+		// write_str("\n");
+
+		write_str(" size: ");
+		write_dec(current->size);
+		// write_str("\n");
+
+		write_str("free: ");
+		write_dec(current->is_free);
+		write_str("\n");
 		current=current->next;
 		i++;
 	}
