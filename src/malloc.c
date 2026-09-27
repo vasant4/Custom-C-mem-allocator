@@ -10,7 +10,9 @@ typedef struct block_header{
 
 static block_header_t *g_head = NULL;
 static block_header_t *g_tail = NULL;
-
+/*
+Helper's for dump_block
+*/
 static void write_str(const char * s){
     size_t len = 0;
     // Count characters until we hit the null-terminator
@@ -32,9 +34,9 @@ static void write_hex(void * ptr){
 	int pos = 19;
 	const char *hex_chars = "0123456789abcdef";
 	while (n>0){
-		buffer[pos]= hex_chars[n%16];
+		buffer[pos]= hex_chars[n%16]; /*divide it by 16 instead of 10. Because n % 16 gives us the last digit (a remainder between 0 and 15) */
         pos--;
-        n = n / 16;
+        n = n / 16; /* divide by 16 to chop of the last digit*/
 	}
 	write(1, &buffer[pos + 1], 19 - pos);
 }
@@ -83,6 +85,39 @@ void dump_blocks(void){
 	}
 }
 
+int check_invariants(void){
+	if(g_head==NULL){
+		return 0; // Empty List.
+	}
+	block_header_t *current = g_head;
+	void *program_break = sbrk(0);
+	while(current != NULL){
+		//Rule 3 - check if the size is > 0 and size is divisible by 8
+		if(current->size == 0 || (current->size%8)!=0){
+			return 3;
+		}
+		//rule 4  payload <= brk, and size <= (brk - payload)
+		char * current_end_block = (char *)current + sizeof(block_header_t) + current->size;
+		if(((char*)current_end_block) > ((char *)program_break)){
+			return 4;
+		}
+		//rule 1  if next exists: end of this block <= next
+		if(current->next != NULL){
+			if (((char *)current_end_block) > ((char *)current->next)){
+				return 1;
+			}
+		}else{
+		/*last = current
+		rule 2  last == g_tail  */
+			if(current != g_tail){
+				return 2;
+			}
+		}
+		current = current->next;
+	}
+	return 0; //If everything passed
+}
+
 static block_header_t * split_blocks(size_t size,block_header_t *current){
 	
 	/*Creation of new block and updating it's contents*/
@@ -119,7 +154,10 @@ static block_header_t * get_free_blocks(size_t size){
 }
 
 void *my_malloc(size_t size)
-{
+{	
+	if (size == 0){
+		return NULL;
+	}
 	size = (size + 7) & ~((size_t)7);
 	block_header_t * free_blocks;
 	free_blocks = get_free_blocks(size);

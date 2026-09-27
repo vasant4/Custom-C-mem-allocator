@@ -6,5 +6,6 @@
 void *my_malloc(size_t size);
 void my_free(void *ptr);
 void dump_blocks(void);
+int check_invariants(void);
 
 #endif

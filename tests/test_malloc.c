@@ -1,41 +1,37 @@
 #include <stdio.h>
 #include "../src/myalloc.h"
-#include <unistd.h>
 
-int main(void)
-{
-    printf("Break before: %p\n", sbrk(0));
-    printf(" \n");
-    char *a = my_malloc(30);
-    char *b = my_malloc(50);
-    char *c = my_malloc(100);
+// 1. Setup the test infrastructure
+static int failures = 0;
 
-    /* fill each block completely with a distinct byte */
-    for (int i = 0; i < 30; i++) a[i] = 'A';
-    for (int i = 0; i < 50; i++) b[i] = 'B';
-    for (int i = 0; i < 100; i++) c[i] = 'C';
+static void check(int ok, const char *what) {
+    printf("%s  %s\n", ok ? "PASS" : "FAIL", what);
+    if (!ok) failures++;
+}
+
+int main(void) {
+    // 2. Write your tests!
     
-    /* read it back — if the memory is real, this survives */
-    printf("a = %p  first=%c last=%c\n", (void*)a, a[0], a[29]);
-    printf("b = %p  first=%c last=%c\n", (void*)b, b[0], b[49]);
-    printf("c = %p  first=%c last=%c\n", (void*)c, c[0], c[99]);
+    // Test Case: my_free(NULL) shouldn't crash
+    my_free(NULL);
+    check(1, "my_free(NULL) did not crash"); 
+    check(check_invariants() == 0, "List valid after my_free(NULL)");
 
-    printf("break after:  %p\n", sbrk(0));
-    printf(" \n");
-    dump_blocks();
-    printf(" \n");
-    // my_free(a);
-    my_free(b);
-    printf("Adding Dump Blocks after freeing b\n");
-    dump_blocks();
-    printf(" \n");
-    // my_free(c);
+    // Test Case: Basic Allocation and 8-byte alignment
+    char *p1 = my_malloc(10); // Should align to 16
+    check(p1 != NULL, "malloc returned a valid pointer");
+    check(check_invariants() == 0, "List valid after first malloc");
 
-    char *d = my_malloc(8);
-    for (int i = 0; i < 30; i++) c[i] = 'C';
-    printf("c = %p  first=%c last=%c\n", (void*)c, c[0], c[29]);
-    printf("Printing all the current blocks details:\n");
-    dump_blocks();
-    my_free(d);
-    return 0;
+    // Test Case: Reuse exact fit
+    // We use a completely new size so it doesn't accidentally reuse an old block
+    char *p2 = my_malloc(100); 
+    my_free(p2);
+    char *p3 = my_malloc(100); 
+    check(p2 == p3, "Freed block of 100 bytes was perfectly reused");
+    check(check_invariants() == 0, "List valid after exact fit reuse");
+
+    // ... you will continue adding test cases here ...
+
+    // 3. Exit with the number of failures
+    return failures ? 1 : 0;
 }
