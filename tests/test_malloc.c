@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include<stdint.h>
 #include "../src/myalloc.h"
 
 // 1. Setup the test infrastructure
@@ -29,7 +30,11 @@ int main(void) {
     char *p3 = my_malloc(100); 
     check(p2 == p3, "Freed block of 100 bytes was perfectly reused");
     check(check_invariants() == 0, "List valid after exact fit reuse");
-
+    
+    char *p4 = my_malloc(SIZE_MAX);
+    check(check_invariants() == 0, "List valid after exact fit reuse");
+    my_free(p4);
+    dump_blocks();
     // ... you will continue adding test cases here ...
 
     // 3. Exit with the number of failures

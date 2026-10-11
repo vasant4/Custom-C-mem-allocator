@@ -155,7 +155,7 @@ static block_header_t * get_free_blocks(size_t size){
 
 void *my_malloc(size_t size)
 {	
-	if (size == 0){
+	if (size == 0 || (size > SIZE_MAX - sizeof(block_header_t))){
 		return NULL;
 	}
 	size = (size + 7) & ~((size_t)7);
