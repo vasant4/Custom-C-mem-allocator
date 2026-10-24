@@ -32,9 +32,14 @@ int main(void) {
     check(check_invariants() == 0, "List valid after exact fit reuse");
     
     char *p4 = my_malloc(SIZE_MAX);
-    check(check_invariants() == 0, "List valid after exact fit reuse");
+    check(check_invariants() == 0, "Checking SIZE_MAX, List valid after exact fit reuse");
     my_free(p4);
-    dump_blocks();
+    
+    check(my_malloc(SIZE_MAX) == NULL, "Checking SIZE_MAX returns NULL");
+
+    check(my_malloc(SIZE_MAX - 24) == NULL, "Checking SIZE_MAX-24 returns NULL");
+
+    check(my_malloc(SIZE_MAX - 40) == NULL, "Checking SIZE_MAX-40 returns NULL");
     // ... you will continue adding test cases here ...
 
     // 3. Exit with the number of failures

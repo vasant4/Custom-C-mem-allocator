@@ -6,6 +6,7 @@ typedef struct block_header{
 	size_t size;
 	int is_free;
 	struct block_header *next;
+	struct block_header *prev;
 }block_header_t;
 
 static block_header_t *g_head = NULL;
@@ -125,6 +126,10 @@ static block_header_t * split_blocks(size_t size,block_header_t *current){
 	new_block->size = current->size - size - sizeof(block_header_t);		/*Update new block's size*/
 	new_block->is_free = 1; 	/*Update is_free to 1 - means free*/
 	new_block->next = current->next;
+	new_block->prev = current;
+	if (new_block->next != NULL) {
+    	new_block->next->prev = new_block;
+	}
 	if(g_tail == current){
 		g_tail = new_block; /* Update the tail/last block details in g_tail*/
 	}
@@ -155,12 +160,20 @@ static block_header_t * get_free_blocks(size_t size){
 
 void *my_malloc(size_t size)
 {	
-	if (size == 0 || (size > SIZE_MAX - sizeof(block_header_t))){
+	/* Pre-Alignment check*/
+	if (size == 0 || size > SIZE_MAX - 7) {
 		return NULL;
 	}
+	
 	size = (size + 7) & ~((size_t)7);
+
+	/* Post-Alignment Check */
+	if (size > PTRDIFF_MAX - sizeof(block_header_t)) {
+		return NULL;
+	}
 	block_header_t * free_blocks;
 	free_blocks = get_free_blocks(size);
+
 	if(free_blocks){
 		return (free_blocks+1);
 	}
@@ -169,16 +182,19 @@ void *my_malloc(size_t size)
 	if (brkop == (void *) -1){
 		return NULL;
 	}
-	// 3. Slap the blueprint on the raw memory!
+	//the blueprint on the raw memory!
 	block_header_t *header = (block_header_t *)brkop;
 	header->size = size;
     header->is_free = 0; // 0 means "in use"
 	header->next = NULL;
+	header->prev = NULL;
+
 	if (g_head == NULL) {
 		g_head = g_tail = header;
 	} else {
-    	g_tail->next = header;
-    	g_tail = header;
+		header->prev = g_tail;
+		g_tail->next = header;
+		g_tail = header;
 	}
 	return (header + 1);
 }
@@ -188,4 +204,70 @@ void my_free(void *ptr)
 	if (ptr == NULL) return; //check for NULL pointers
 	block_header_t *header = (block_header_t*)ptr-1;
 	header->is_free=1;
+
+	/* Here is the DOE for Coallescing */
+	/*This for Head block*/
+	if( (header->next) != NULL && (header->prev) == NULL){
+		block_header_t* next_block = header->next;
+		if( next_block->is_free == 1){
+
+			header->size = (header->size) + next_block->size + (sizeof(block_header_t));
+			header->next = next_block->next;
+			
+			if (header->next != NULL) {			/* Edge Cases*/
+    		header->next->prev = header;
+			}
+			if (next_block == g_tail) {
+				g_tail = header;
+				return;
+			}
+			g_head = header; /* Update the head */
+		}
+	}
+	/* This is for Middle block */
+	if( (header->next) != NULL && (header->prev) != NULL){
+		block_header_t* next_block = header->next;
+		block_header_t* prev_block = header->prev;
+		if(prev_block->is_free == 1 && next_block->is_free == 1){
+			
+			prev_block->next = next_block->next;
+			/* Edge Cases*/
+			if (prev_block->next != NULL) {
+    			prev_block->next->prev = prev_block;
+			}
+			prev_block->size = (prev_block->size) + (header->size) + next_block->size + 2*(sizeof(block_header_t));
+			if(next_block == g_tail){
+				g_tail = prev_block;
+			}
+
+		}else if(prev_block->is_free == 0 && next_block->is_free == 1){
+
+			header->size = (header->size) + (next_block->size) + sizeof(block_header_t);
+			header->next = next_block->next;
+			/* Edge Cases*/
+			if (header->next != NULL) {
+    		header->next->prev = header;
+			}
+			if (next_block == g_tail) {
+				g_tail = header;
+			}
+		}else if(prev_block->is_free == 1 && next_block->is_free == 0){
+			
+			prev_block->size = (prev_block->size) + (header->size) + sizeof(block_header_t);
+			prev_block->next = header->next;
+			if (prev_block->next != NULL) {
+    		header->next->prev = prev_block;
+			}
+		}
+	}
+	/* This is for last block Condition*/
+	if( (header->next) == NULL && (header->prev) != NULL){
+		block_header_t* prev_block = header->prev;
+		if(prev_block->is_free == 1){
+			
+			prev_block->size = (prev_block->size) + (header->size) + sizeof(block_header_t);
+			prev_block->next = NULL;
+			g_tail = prev_block; /* Update the tail after coalesing the last block*/
+		}
+	}
 }
