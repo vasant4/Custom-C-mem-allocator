@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include<stdint.h>
+#include <stdint.h>
+#include <unistd.h>
 #include "../src/myalloc.h"
 
 // 1. Setup the test infrastructure
@@ -40,7 +41,42 @@ int main(void) {
     check(my_malloc(SIZE_MAX - 24) == NULL, "Checking SIZE_MAX-24 returns NULL");
 
     check(my_malloc(SIZE_MAX - 40) == NULL, "Checking SIZE_MAX-40 returns NULL");
-    // ... you will continue adding test cases here ...
+
+    // Allocate two distinct blocks
+    char *a = my_malloc(64);
+    char *b = my_malloc(64);
+    my_free(a);
+    my_free(b); // Should merge a and b into one ~160-byte free block
+
+    // Request a size that only fits if a and b merged:
+    char *c = my_malloc(128);
+    check(c == a, "Coalescing: merged adjacent blocks reused for larger request");
+    check(check_invariants() == 0, "List valid after coalescing");
+
+
+    char *x = my_malloc(64);
+    char *y = my_malloc(64);
+    char *z = my_malloc(64);
+    my_free(x);
+    my_free(z);
+    my_free(y); // Freeing y should merge x, y, and z into one block
+
+    char *big = my_malloc(200);
+    check(big == x, "Coalescing: 3-way merge correctly combined x, y, z");
+    check(check_invariants() == 0, "List valid after 3-way merge");
+
+    char *m1 = my_malloc(64);
+    // Simulate foreign memory allocation by moving the break directly:
+    void *foreign = sbrk(86);
+    *(char *)foreign = 'Z'; // Write a marker byte
+
+    char *m2 = my_malloc(64);
+    my_free(m1);
+    my_free(m2); // MUST NOT merge across the foreign 86-byte gap!
+
+    check(*(char *)foreign == 'Z', "Coalescing: foreign memory between blocks was not corrupted");
+    check(check_invariants() == 0, "List valid when blocks have memory gaps");
+    // ... continue adding test cases here ...
 
     // 3. Exit with the number of failures
     return failures ? 1 : 0;

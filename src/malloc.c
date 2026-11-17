@@ -114,6 +114,16 @@ int check_invariants(void){
 				return 2;
 			}
 		}
+		// Rule 5: g_head->prev must be NULL
+		if (g_head != NULL && g_head->prev != NULL) {
+			return 5;
+		}
+		// Rule 6: Broken doubly-linked list backlink!
+		if (current->next != NULL) {
+    		if (current->next->prev != current) {
+        		return 6;
+    		}
+		}
 		current = current->next;
 	}
 	return 0; //If everything passed
@@ -204,70 +214,28 @@ void my_free(void *ptr)
 	if (ptr == NULL) return; //check for NULL pointers
 	block_header_t *header = (block_header_t*)ptr-1;
 	header->is_free=1;
-
-	/* Here is the DOE for Coallescing */
-	/*This for Head block*/
-	if( (header->next) != NULL && (header->prev) == NULL){
-		block_header_t* next_block = header->next;
-		if( next_block->is_free == 1){
-
-			header->size = (header->size) + next_block->size + (sizeof(block_header_t));
-			header->next = next_block->next;
-			
-			if (header->next != NULL) {			/* Edge Cases*/
-    		header->next->prev = header;
-			}
-			if (next_block == g_tail) {
-				g_tail = header;
-				return;
-			}
-			g_head = header; /* Update the head */
+	/* merge with next block */
+	if( (header->next) != NULL && (header->next->is_free) == 1 && (char *)header + sizeof(block_header_t)+ header->size == (char *)header->next){
+		block_header_t* next_block = header->next;	
+		header->size += sizeof(block_header_t) + next_block->size;
+		header->next = next_block->next;
+		if (header->next != NULL) {			/* Edge Cases*/
+			header->next->prev = header;
+		}
+		if (next_block == g_tail) {
+			g_tail = header;
 		}
 	}
-	/* This is for Middle block */
-	if( (header->next) != NULL && (header->prev) != NULL){
-		block_header_t* next_block = header->next;
-		block_header_t* prev_block = header->prev;
-		if(prev_block->is_free == 1 && next_block->is_free == 1){
-			
-			prev_block->next = next_block->next;
-			/* Edge Cases*/
-			if (prev_block->next != NULL) {
-    			prev_block->next->prev = prev_block;
-			}
-			prev_block->size = (prev_block->size) + (header->size) + next_block->size + 2*(sizeof(block_header_t));
-			if(next_block == g_tail){
-				g_tail = prev_block;
-			}
-
-		}else if(prev_block->is_free == 0 && next_block->is_free == 1){
-
-			header->size = (header->size) + (next_block->size) + sizeof(block_header_t);
-			header->next = next_block->next;
-			/* Edge Cases*/
-			if (header->next != NULL) {
-    		header->next->prev = header;
-			}
-			if (next_block == g_tail) {
-				g_tail = header;
-			}
-		}else if(prev_block->is_free == 1 && next_block->is_free == 0){
-			
-			prev_block->size = (prev_block->size) + (header->size) + sizeof(block_header_t);
-			prev_block->next = header->next;
-			if (prev_block->next != NULL) {
-    		header->next->prev = prev_block;
-			}
+	/* merge with previous block */
+	if( (header->prev) != NULL && (header->prev->is_free) == 1 && ((char *)header->prev + sizeof(block_header_t)+ header->prev->size == (char *)header)){
+		block_header_t *prev_block = header->prev;
+		prev_block->size += sizeof(block_header_t) + header->size;
+		prev_block->next = header->next;
+		if (prev_block->next != NULL) {
+			prev_block->next->prev = prev_block;
 		}
-	}
-	/* This is for last block Condition*/
-	if( (header->next) == NULL && (header->prev) != NULL){
-		block_header_t* prev_block = header->prev;
-		if(prev_block->is_free == 1){
-			
-			prev_block->size = (prev_block->size) + (header->size) + sizeof(block_header_t);
-			prev_block->next = NULL;
-			g_tail = prev_block; /* Update the tail after coalesing the last block*/
+		if (header == g_tail) {
+			g_tail = prev_block;
 		}
 	}
 }
