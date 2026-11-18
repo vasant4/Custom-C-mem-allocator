@@ -35,7 +35,7 @@ void delete_by_value(Node** head, int val) {
 }
 
 void print(Node* head) {
-    Node* current = head;
+    Node *current = head;
     while (current != NULL) {
         printf("%d -> ", current->data);
         current = current->next;
