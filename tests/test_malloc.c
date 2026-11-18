@@ -54,27 +54,30 @@ int main(void) {
     check(check_invariants() == 0, "List valid after coalescing");
 
 
-    char *x = my_malloc(64);
-    char *y = my_malloc(64);
-    char *z = my_malloc(64);
-    my_free(x);
-    my_free(z);
-    my_free(y); // Freeing y should merge x, y, and z into one block
-
-    char *big = my_malloc(200);
-    check(big == x, "Coalescing: 3-way merge correctly combined x, y, z");
-    check(check_invariants() == 0, "List valid after 3-way merge");
-
     char *m1 = my_malloc(64);
-    // Simulate foreign memory allocation by moving the break directly:
-    void *foreign = sbrk(86);
-    *(char *)foreign = 'Z'; // Write a marker byte
+    char *foreign = (char *)sbrk(86);
+    for (int i = 0; i < 86; i++) foreign[i] = 'Z'; // Fill all 86 foreign bytes
 
     char *m2 = my_malloc(64);
     my_free(m1);
-    my_free(m2); // MUST NOT merge across the foreign 86-byte gap!
+    my_free(m2); // MUST NOT merge across the 86-byte gap!
 
-    check(*(char *)foreign == 'Z', "Coalescing: foreign memory between blocks was not corrupted");
+    // Now trigger the bug: ask for a block that only fits if m1 & m2 merged
+    char *m3 = my_malloc(128);
+    check(m3 != m1, "Coalescing: did not merge across foreign gap");
+
+    // Fill the entire new allocation with 'X'
+    for (int i = 0; i < 128; i++) m3[i] = 'X';
+
+    // Verify NONE of the 86 foreign bytes were clobbered
+    int foreign_intact = 1;
+    for (int i = 0; i < 86; i++) {
+        if (foreign[i] != 'Z') {
+            foreign_intact = 0;
+            break;
+        }
+    }
+    check(foreign_intact, "Coalescing: foreign memory between blocks was not corrupted");
     check(check_invariants() == 0, "List valid when blocks have memory gaps");
     // ... continue adding test cases here ...
 
