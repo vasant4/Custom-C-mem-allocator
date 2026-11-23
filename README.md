@@ -12,7 +12,8 @@ sbrk: sbrk moves the program break, which is at the end of heap. we use negative
 mmap: Allocates a separate virtual memory area outside the main heap; allocated memory can be released using munmap().
 I have used sbrk because it is simpler to understand and manage linearly. There are downsides to using sbrk:
 1. Memory can only be returned to the OS from the top of the heap (adjacent to the program break), following a LIFO (Last-In, First-Out) order.
-2. If an sbrk(size) is called in between the blocks then it will disturb the block's chain and if sbrk(size) is called for an odd size then it will disturb the alignment. "If anything else moves the break between two of my allocations, it leaves a gap between list neighbours (handled by the contiguity check). If that gap isn't a multiple of 8, every later block is misaligned. The fix is to check that sbrk(0) is a multiple of 8 before growing the heap."
+2. If anything else moves the break between two of my allocations, it leaves a gap between list neighbours (handled by the contiguity check). If that gap isn't a multiple of 8, every later block is misaligned. The fix is to check that sbrk(0) is a multiple of 8 before growing the heap.
+
 ### Bestfit vs firstfit
 Bestfit: finds the smallest block that is big enough for requested size.
 firstfit: It takes the first free block that is big enough for requested size
@@ -36,7 +37,7 @@ Each block has a block header and payload
 
 
 block_header_t contains four things - 
-size_t size - the current, 8-byte aligned capacity of the block's pay load; Users raw size request is rounded up to match the 8-byte alignment. 
+size_t size - the current, 8-byte aligned capacity of the block's payload; Users raw size request is rounded up to match the 8-byte alignment. 
 int is_free - It tracks the block's allocations Status(0 = in use, 1 = free). when my_free() is called, it marks this as 1 and initiates bidirectional coalescing with adjacent free blocks.  
 block_header_t *next - pointer to the next block in heap chain.
 block_header_t *prev - pointer to the previous blocks in heap chain.
@@ -61,12 +62,12 @@ block_header_t *prev - pointer to the previous blocks in heap chain.
 
 We append the new blocks at tail so that the list stays in order and a single chain is maintained.
 
-### Blocks Spliting
-when my_malloc() is called it traverse the heap chain from g_head to next and if it finds free block then it checks if spliting is worthwhile: current->size - size >= sizeof(block_header_t) + 8 (a minimum of 40 bytes).
+### Blocks splitting
+when my_malloc() is called it traverse the heap chain from g_head to next and if it finds free block then it checks if splitting is worthwhile: current->size - size >= sizeof(block_header_t) + 8 (a minimum of 40 bytes).
 
-We have kept the block spliting to 8 bytes Because: 
+We have kept the block splitting to 8 bytes Because: 
 1. All allocations are 8-byte aligned, remainders are always multiples of 8, so 1- or 2-byte remainders never occur.
-2. if after spliting the blocks if the remaining size is less than < size_of(block_header), then it will be wasted as we cannot use that memory for any other purpose especially if it has neighbouring blocks
+2. if after splitting the blocks if the remaining size is less than < size_of(block_header), then it will be wasted as we cannot use that memory for any other purpose especially if it has neighbouring blocks
 
 BEFORE SPLIT (Total footprint: 160 Bytes | split threshold: >= 32B header + 8B = 40B)
 +0                   +32                                                         +160
@@ -123,7 +124,7 @@ Note:  my_free() then runs the same check backward against prev_block, giving fu
 ### Key Design Decisions & Bugs Solved ("Why We Did It This Way")
 * **Physical Contiguity Check Before Coalescing:** Verifies that two adjacent free blocks in the linked list are also physically touching in raw memory ((char *)curr + sizeof(header) + curr->size == (char *)curr->next) before merging. This ensures that any foreign memory placed between blocks (such as external sbrk calls from libc) is preserved and not swallowed or corrupted.
 * **Two-Stage Overflow Guard (`SIZE_MAX` & `PTRDIFF_MAX`):**A pair of arithmetic checks that safely reject requests approaching memory limits: Stage 1 (size > SIZE_MAX - 7) blocks integer wrap-around during 8-byte alignment, and Stage 2 (size > PTRDIFF_MAX - sizeof(header)) prevents the total request from overflowing sbrk's signed intptr_t parameter.
-* **Non-Allocating Debugging I/O (write() in `dump_blocks`):** We used Non-Allocating I/O for debugging. Nothing that allocates cannot be in allocator. printf allocates internal formatting buffers on the heap. Calling printf inside allocator routines like dump_blocks risks recursive calls to my_malloc, causing stack overflows or deadlocks. That is why we use write() a direct POSIX system call wrapper that performs no dynamic memory allocation.
+* **Non-Allocating Debugging I/O (write() in `dump_blocks`):** We used Non-Allocating I/O for debugging. Nothing that can allocate may run inside the allocator.. printf allocates internal formatting buffers on the heap. Calling printf inside allocator routines like dump_blocks risks recursive calls to my_malloc, causing stack overflows or deadlocks. That is why we use write() a direct POSIX system call wrapper that performs no dynamic memory allocation.
 * **Defensive Invariant Checker (`check_invariants`):** when check_invariants() is called it traverses the heap to enforce structural rules—verifying that every block's size is a non-zero multiple of 8, non-overlapping block bounds, OS break limits (sbrk(0)), g_tail accuracy, and doubly-linked backlink consistency (next->prev == current).
 
 #### Project Structure
